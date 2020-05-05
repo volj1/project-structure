@@ -1,32 +1,63 @@
+import fetchJson from "../../utils/fetch-json.js";
+
+const BACKEND_URL = 'https://course-js.javascript.ru';
+
 export default class ColumnChart {
   element;
   subElements = {};
   chartHeight = 50;
 
   constructor({
-    data = [],
+    url = null,
     label = '',
     link = '',
-    value = 0
+    format = num => num
   } = {}) {
-    this.data = data;
+    this.url = new URL(url ?? `api/dashboard/${label}`, BACKEND_URL);
+    this.mockData();
     this.label = label;
     this.link = link;
-    this.value = value;
+    this.format = format;
 
     // NOTE: needed for correct work in src/pages/dashboard/index.js:93
     // this.render();
   }
 
+  async updateDateRange(from, to) {
+    this.dateRange = {from: from, to: to};
+    await this.loadData();
+
+    this.subElements.header.textContent = this.format(this.value);
+    this.subElements.body.innerHTML = this.getColumnBody(this.data);
+  }
+
+  async loadData() {
+    if (this.dateRange?.from) {
+      this.url.searchParams.set('from', this.dateRange.from.toISOString());
+    }
+    if (this.dateRange?.to) {
+      this.url.searchParams.set('to', this.dateRange.to.toISOString());
+    }
+    this.data = await fetchJson(this.url.toString());
+
+    this.value = Object.values(this.data).reduce((accum, item) => accum + item, 0);
+  }
+
+  mockData() {
+    this.data = {};
+    for (let i = 1; i < 10; i++) {
+      const date = `2020-04-0${i}`;
+      this.data[date] = Math.floor(Math.random() * Math.floor(25));
+    }
+    this.value = Object.values(this.data).reduce((accum, item) => accum + item, 0);
+  }
+
   getColumnBody(data) {
-    const maxValue = Math.max(...data);
+    const maxValue = Math.max(...Object.values(data));
+    const scale = this.chartHeight / maxValue;
 
-    return data
-    .map(item => {
-      const scale = this.chartHeight / maxValue;
-      const percent = (item / maxValue * 100).toFixed(0);
-
-      return `<div style="--value: ${Math.floor(item * scale)}" data-tooltip="${percent}%"></div>`;
+    return Object.entries(data).map(([key, value]) => {
+      return `<div style="--value: ${Math.floor(value * scale)}" data-tooltip="${key}"></div>`;
     })
     .join('');
   }
@@ -44,7 +75,7 @@ export default class ColumnChart {
         </div>
         <div class="column-chart__container">
           <div data-element="header" class="column-chart__header">
-            ${this.value}
+            ${this.format(this.value)}
           </div>
           <div data-element="body" class="column-chart__chart">
             ${this.getColumnBody(this.data)}
@@ -60,9 +91,7 @@ export default class ColumnChart {
     element.innerHTML = this.template;
     this.element = element.firstElementChild;
 
-    if (this.data.length) {
-      this.element.classList.remove(`column-chart_loading`);
-    }
+    this.element.classList.remove(`column-chart_loading`);
 
     this.subElements = this.getSubElements(this.element);
 
@@ -77,11 +106,6 @@ export default class ColumnChart {
 
       return accum;
     }, {});
-  }
-
-  update ({headerData, bodyData}) {
-    this.subElements.header.textContent = headerData;
-    this.subElements.body.innerHTML = this.getColumnBody(bodyData);
   }
 
   destroy() {

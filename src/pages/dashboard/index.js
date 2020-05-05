@@ -1,6 +1,7 @@
 import SortableTable from "../../components/sortable-table/index.js";
 import header from './bestsellers-header.js';
 import ColumnChart from "../../components/column-chart/index.js";
+import RangePicker from "../../components/range-picker/index.js";
 
 export default class Page {
   element;
@@ -10,21 +11,18 @@ export default class Page {
   constructor () {
     this.initComponents();
     this.initEventListeners();
+
+    // сгенерим событие установки начальной даты, почему-то работает только через setTimeout
+    window.setTimeout(() => this.components.rangePickerRoot.dispatchEvent(), 1);
   }
 
   initComponents () {
-    // TODO: replace by API for Bestsellers products
     const sortableTable = new SortableTable(header, {
-      url: 'api/rest/products'
+      url: 'api/dashboard/bestsellers'
     });
-
-    const ordersData = [];
-    const salesData = [ 30, 40, 20, 80, 35, 15 ];
-    const customersData = [ 100, 90, 80, 35, 90, 25 ];
 
     // TODO: replace "mocked" data by real API calls
     const ordersChart = new ColumnChart({
-      data: ordersData,
       label: 'orders',
       value: 344,
       link: '#'
@@ -32,33 +30,31 @@ export default class Page {
 
     // TODO: replace "mocked" data by real API calls
     const salesChart = new ColumnChart({
-      data: salesData,
       label: 'sales',
-      value: '$243,437'
+      value: '$243,437',
+      format: num => '$' + num.toLocaleString()
     });
 
     // TODO: replace "mocked" data by real API calls
     const customersChart = new ColumnChart({
-      data: customersData,
       label: 'customers',
       value: 321
     });
+
+    const rangePicker = new RangePicker();
 
     this.components.sortableTable = sortableTable;
     this.components.ordersChart = ordersChart;
     this.components.salesChart = salesChart;
     this.components.customersChart = customersChart;
+    this.components.rangePickerRoot = rangePicker;
   }
 
   get template () {
     return `<div class="dashboard">
       <div class="content__top-panel">
         <h2 class="page-title">Dashboard</h2>
-
-        <!-- TODO: add RangePicker component -->
-        <!--<div data-element="rangePickerRoot">-->
-          <!-- range-picker component -->
-        <!--</div>-->
+        <div data-element="rangePickerRoot"></div>
       </div>
       <div data-element="chartsRoot" class="dashboard__charts">
         <!-- column-chart components -->
@@ -109,10 +105,18 @@ export default class Page {
   }
 
   initEventListeners () {
-    // TODO: add addEventListener for RangePicker event
+    document.addEventListener('date-select', this.onDateSelect);
+  }
+
+  onDateSelect = async event => {
+    const {from, to} = event.detail;
+    for (let cmp of Object.values(this.components)) {
+      if (cmp.updateDateRange) await cmp.updateDateRange(from, to);
+    }
   }
 
   destroy () {
+    document.removeEventListener('date-select', this.onDateSelect);
     for (const component of Object.values(this.components)) {
       component.destroy();
     }
