@@ -24,21 +24,18 @@ export default class Page {
     // TODO: replace "mocked" data by real API calls
     const ordersChart = new ColumnChart({
       label: 'orders',
-      value: 344,
       link: '#'
     });
 
     // TODO: replace "mocked" data by real API calls
     const salesChart = new ColumnChart({
       label: 'sales',
-      value: '$243,437',
       format: num => '$' + num.toLocaleString()
     });
 
     // TODO: replace "mocked" data by real API calls
     const customersChart = new ColumnChart({
-      label: 'customers',
-      value: 321
+      label: 'customers'
     });
 
     const rangePicker = new RangePicker();
